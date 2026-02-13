@@ -1,3 +1,27 @@
+import fs from "fs";
+import path from "path";
+
+// --- EMERGENCY LOGGING SETUP ---
+// Using both process.cwd() and __dirname for maximum reliability
+function fileLog(message: string) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `${timestamp} - ${message}\n`;
+  const logs = [
+    path.join(process.cwd(), "startup_debug.txt"),
+    path.join(__dirname, "..", "startup_debug.txt"),
+    "/home/u884871213/domains/vevoline.space/public_html/startup_debug.txt"
+  ];
+  
+  for (const logPath of logs) {
+    try {
+      fs.appendFileSync(logPath, logMessage);
+    } catch (e) { /* ignore */ }
+  }
+  console.log(message);
+}
+
+fileLog("--- SERVER STARTUP SEQUENCE START ---");
+
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
@@ -10,25 +34,11 @@ import { registerWorkTrackingRoutes } from "./workTracking";
 import { registerClientPortalRoutes } from "./clientPortal";
 import { initializeEmailTransporter } from "./email";
 import { pool } from "./db";
-import fs from "fs";
-import path from "path";
 
 const app = express();
 const httpServer = createServer(app);
 
-// Custom File Logger for Hostinger diagnostics
-function fileLog(message: string) {
-  const timestamp = new Date().toISOString();
-  const logMessage = `${timestamp} - ${message}\n`;
-  try {
-    fs.appendFileSync(path.join(process.cwd(), "startup_debug.txt"), logMessage);
-  } catch (e) {
-    // ignore logging errors
-  }
-  console.log(message);
-}
-
-fileLog("--- SERVER STARTUP SEQUENCE ---");
+fileLog("Express and HTTP server initialized");
 
 declare module "http" {
   interface IncomingMessage {
