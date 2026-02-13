@@ -4,15 +4,15 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "cross-env NODE_ENV=development node node_modules/tsx/dist/cli.mjs server/index.ts",
-    "build": "cross-env ESBUILD_BINARY_PATH=node_modules/@esbuild/win32-x64/gesbuild.exe node node_modules/tsx/dist/cli.mjs script/build.ts",
+    "dev": "node node_modules/tsx/dist/cli.mjs server/index.ts",
+    "build": "node node_modules/tsx/dist/cli.mjs script/build.ts",
     "postbuild": "node -e \"const fs=require('fs'); fs.copyFileSync('dist/index.cjs','dist/index.js')\"",
-    "start": "cross-env NODE_ENV=production node dist/index.cjs",
+    "start": "node dist/index.cjs",
     "check": "tsc",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "cross-env ESBUILD_BINARY_PATH=node_modules/@esbuild/win32-x64/gesbuild.exe node node_modules/tsx/dist/cli.mjs server/migrate.ts",
-    "db:seed": "cross-env ESBUILD_BINARY_PATH=node_modules/@esbuild/win32-x64/gesbuild.exe node node_modules/tsx/dist/cli.mjs server/seed.ts",
-    "db:reset": "cross-env ESBUILD_BINARY_PATH=node_modules/@esbuild/win32-x64/gesbuild.exe node node_modules/tsx/dist/cli.mjs server/reset_db.ts",
+    "db:migrate": "node node_modules/tsx/dist/cli.mjs server/migrate.ts",
+    "db:seed": "node node_modules/tsx/dist/cli.mjs server/seed.ts",
+    "db:reset": "node node_modules/tsx/dist/cli.mjs server/reset_db.ts",
     "db:push": "echo '⚠️  Use npm run db:migrate instead of db:push for consistent migrations' && npm run db:migrate"
   },
   "dependencies": {
@@ -90,7 +90,13 @@
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
     "zod": "^3.24.2",
-    "zod-validation-error": "^3.4.0"
+    "zod-validation-error": "^3.4.0",
+    "vite": "^7.3.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
+    "tsx": "^4.21.0",
+    "typescript": "5.6.3",
+    "esbuild": "0.27.3"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -101,7 +107,6 @@
   "devDependencies": {
     "@replit/vite-plugin-cartographer": "^0.4.4",
     "@replit/vite-plugin-dev-banner": "^0.1.1",
-    "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
     "@swc/cli": "^0.8.0",
     "@swc/core": "^1.15.11",
     "@swc/helpers": "^0.5.18",
@@ -116,15 +121,11 @@
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
     "@types/ws": "^8.5.13",
-    "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
     "drizzle-kit": "^0.31.9",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
-    "ts-node": "^10.9.2",
-    "tsx": "^4.21.0",
-    "typescript": "5.6.3",
-    "vite": "^7.3.0"
+    "ts-node": "^10.9.2"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
