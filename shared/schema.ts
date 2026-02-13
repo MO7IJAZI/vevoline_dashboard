@@ -602,9 +602,13 @@ export const notifications = mysqlTable("notifications", {
   id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
   userId: text("user_id").notNull(),
   type: text("type").notNull(), // "info", "success", "warning", "error", "reminder"
-  title: text("title").notNull(),
-  message: text("message").notNull(),
+  titleAr: text("title_ar").notNull(),
+  titleEn: text("title_en"),
+  messageAr: text("message_ar").notNull(),
+  messageEn: text("message_en"),
   read: boolean("read").notNull().default(false),
+  relatedId: text("related_id"),
+  relatedType: text("related_type"),
   snoozedUntil: timestamp("snoozed_until").default(sql`NULL`),
   createdAt: timestamp("created_at").defaultNow(),
 });
