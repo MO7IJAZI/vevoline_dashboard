@@ -1,11 +1,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import path, { dirname } from "path";
-import { fileURLToPath } from "url";
+import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Use process.cwd() as a fallback for __dirname in CJS/ESM mixed environments
+const projectRoot = process.cwd();
 
 export default defineConfig({
   plugins: [
@@ -14,14 +13,14 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "client", "src"),
-      "@shared": path.resolve(__dirname, "shared"),
-      "@assets": path.resolve(__dirname, "client", "src", "assets"),
+      "@": path.resolve(projectRoot, "client", "src"),
+      "@shared": path.resolve(projectRoot, "shared"),
+      "@assets": path.resolve(projectRoot, "client", "src", "assets"),
     },
   },
-  root: path.resolve(__dirname, "client"),
+  root: path.resolve(projectRoot, "client"),
   build: {
-    outDir: path.resolve(__dirname, "dist/public"),
+    outDir: path.resolve(projectRoot, "dist/public"),
     emptyOutDir: true,
   },
   server: {
