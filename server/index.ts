@@ -9,6 +9,7 @@ import { registerAuthRoutes, seedAdminUser } from "./auth";
 import { registerWorkTrackingRoutes } from "./workTracking";
 import { registerClientPortalRoutes } from "./clientPortal";
 import { initializeEmailTransporter } from "./email";
+import { pool } from "./db";
 
 const app = express();
 const httpServer = createServer(app);
@@ -35,8 +36,11 @@ app.set("trust proxy", 1);
 const MySqlSession = connectMySql(session as any);
 
 const SESSION_MAX_AGE = parseInt(process.env.SESSION_MAX_AGE || String(8 * 60 * 60 * 1000)); // Default 8 hours
-const isProduction = process.env.NODE_ENV === "production";
+// In some hosting environments like Hostinger, NODE_ENV might not be set correctly in the shell.
+// We can also check if we're running from the bundled dist directory.
+const isProduction = process.env.NODE_ENV === "production" || process.argv[1].includes("dist");
 
+console.log(`[Server] Environment: ${isProduction ? "production" : "development"}`);
 console.log(`[Session] Config: secure=${isProduction}, maxAge=${SESSION_MAX_AGE}ms`);
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -120,6 +124,19 @@ app.use((req, res, next) => {
 (async () => {
   try {
     log("Starting server initialization...");
+    
+    // Test database connection early
+    try {
+      log("Testing database connection...");
+      const connection = await pool.getConnection();
+      log("✅ Database connection successful");
+      connection.release();
+    } catch (dbErr) {
+      console.error("❌ DATABASE CONNECTION FAILED:", dbErr);
+      // In production (Hostinger), we don't necessarily want to kill the process immediately
+      // if the DB is just temporarily down, but it's a critical error.
+    }
+
     await initializeEmailTransporter();
     
     registerAuthRoutes(app);
@@ -148,9 +165,11 @@ app.use((req, res, next) => {
     // importantly only setup vite in development and after
     // setting up all the other routes so the catch-all route
     // doesn't interfere with the other routes
-    if (process.env.NODE_ENV === "production") {
+    if (isProduction) {
+      log("Setting up static file serving (Production Mode)");
       serveStatic(app);
     } else {
+      log("Setting up Vite development server (Development Mode)");
       const { setupVite } = await import("./vite");
       await setupVite(httpServer, app);
     }

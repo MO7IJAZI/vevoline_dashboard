@@ -12,4 +12,5 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+export { pool };
 export const db = drizzle(pool);
