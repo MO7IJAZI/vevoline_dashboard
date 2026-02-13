@@ -1,13 +1,13 @@
 {
   "name": "rest-express",
   "version": "1.0.0",
-  "type": "module",
+  "type": "commonjs",
   "license": "MIT",
   "scripts": {
     "dev": "node node_modules/tsx/dist/cli.mjs server/index.ts",
     "build": "node node_modules/tsx/dist/cli.mjs script/build.ts",
-    "postbuild": "node -e \"const fs=require('fs'); fs.copyFileSync('dist/index.cjs','dist/index.js')\"",
-    "start": "cross-env NODE_ENV=production node dist/index.cjs",
+    "postbuild": "echo 'Build complete'",
+    "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node node_modules/tsx/dist/cli.mjs server/migrate.ts",
