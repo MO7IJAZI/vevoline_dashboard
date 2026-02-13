@@ -260,8 +260,10 @@ app.use((req, res, next) => {
   }
 })();
 
-// Compatibility export for various environments
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = app;
+// Compatibility export for various environments (Passenger, etc.)
+// We use a safe check to avoid ESM/CJS hybrid warnings during bundling
+if (typeof module !== 'undefined' && 'exports' in module) {
+  (module as any).exports = app;
 }
+
 export default app;
