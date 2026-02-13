@@ -769,43 +769,35 @@ const initialInvoices = [
 // ============ SEED FUNCTION ============
 
 async function seed() {
-  console.log("🌱 Starting seed process...");
+  console.log("Starting seed process...");
 
   // 1. Seed Main Packages (Categories)
-  console.log("📦 Seeding Main Packages...");
-  await db.insert(mainPackages).values(initialMainPackages).onDuplicateKeyUpdate({
-    set: { 
-      name: sql`VALUES(name)`,
-      nameEn: sql`VALUES(name_en)`,
-      icon: sql`VALUES(icon)`,
-      description: sql`VALUES(description)`,
-      descriptionEn: sql`VALUES(description_en)`,
-      order: sql`VALUES(\`order\`)`,
-      isActive: sql`VALUES(is_active)`,
-    },
-  });
+  console.log("Seeding Main Packages...");
+  try {
+    const existingPkgs = await db.select().from(mainPackages);
+    if (existingPkgs.length === 0) {
+      await db.insert(mainPackages).values(initialMainPackages);
+      console.log(`Seeded ${initialMainPackages.length} main packages.`);
+    } else {
+      console.log("Main packages already exist, skipping.");
+    }
+  } catch (error) {
+    console.error("Error seeding main packages:", error);
+  }
 
   // 2. Seed Sub Packages (Plans)
-  console.log("📦 Seeding Sub Packages...");
-  await db.insert(subPackages).values(initialSubPackages).onDuplicateKeyUpdate({
-    set: {
-      name: sql`VALUES(name)`,
-      nameEn: sql`VALUES(name_en)`,
-      price: sql`VALUES(price)`,
-      currency: sql`VALUES(currency)`,
-      billingType: sql`VALUES(billing_type)`,
-      description: sql`VALUES(description)`,
-      descriptionEn: sql`VALUES(description_en)`,
-      duration: sql`VALUES(duration)`,
-      durationEn: sql`VALUES(duration_en)`,
-      deliverables: sql`VALUES(deliverables)`,
-      platforms: sql`VALUES(platforms)`,
-      features: sql`VALUES(features)`,
-      featuresEn: sql`VALUES(features_en)`,
-      isActive: sql`VALUES(is_active)`,
-      order: sql`VALUES(\`order\`)`,
-    },
-  });
+  console.log("Seeding Sub Packages...");
+  try {
+    const existingSubPkgs = await db.select().from(subPackages);
+    if (existingSubPkgs.length === 0) {
+      await db.insert(subPackages).values(initialSubPackages);
+      console.log(`Seeded ${initialSubPackages.length} sub packages.`);
+    } else {
+      console.log("Sub packages already exist, skipping.");
+    }
+  } catch (error) {
+    console.error("Error seeding sub packages:", error);
+  }
 
   // 3. Seed Admin User
   try {
@@ -820,58 +812,36 @@ async function seed() {
         permissions: roleDefaultPermissions.admin,
         isActive: true,
       });
-      console.log("✅ Admin user seeded.");
+      console.log("Admin user seeded.");
     } else {
-      console.log("ℹ️ Admin user already exists.");
+      console.log("Admin user already exists.");
     }
   } catch (error) {
-    console.error("❌ Error seeding admin user:", error);
+    console.error("Error seeding admin user:", error);
   }
 
   // 4. Seed Employees
-  console.log("👥 Seeding Employees...");
+  console.log("Seeding Employees...");
   try {
-    await db.insert(employees).values(initialEmployees).onDuplicateKeyUpdate({
-      set: {
-        name: sql`VALUES(name)`,
-        nameEn: sql`VALUES(name_en)`,
-        email: sql`VALUES(email)`,
-        phone: sql`VALUES(phone)`,
-        role: sql`VALUES(role)`,
-        roleAr: sql`VALUES(role_ar)`,
-        department: sql`VALUES(department)`,
-        jobTitle: sql`VALUES(job_title)`,
-        salaryType: sql`VALUES(salary_type)`,
-        salaryAmount: sql`VALUES(salary_amount)`,
-        salaryCurrency: sql`VALUES(salary_currency)`,
-        rate: sql`VALUES(rate)`,
-        rateType: sql`VALUES(rate_type)`,
-        salaryNotes: sql`VALUES(salary_notes)`,
-        startDate: sql`VALUES(start_date)`,
-        isActive: sql`VALUES(is_active)`,
-      },
-    });
-    
-    // Seed initial salary configs for these employees (idempotent)
-    const salaryInserts = initialEmployees.map(emp => ({
-      employeeId: emp.id,
-      amount: emp.salaryAmount || 0,
-      currency: emp.salaryCurrency || "USD",
-      effectiveDate: emp.startDate,
-      type: "basic"
-    }));
-    
-    // We check if salaries exist before inserting to avoid duplicates (no simple upsert for this table without unique key)
-    const existingSalaries = await db.select().from(employeeSalaries);
-    if (existingSalaries.length === 0) {
-        await db.insert(employeeSalaries).values(salaryInserts);
-        console.log(`✅ Seeded ${salaryInserts.length} employee salary configurations.`);
-    } else {
-        console.log("ℹ️ Employee salaries table not empty, skipping.");
-    }
+    const existingEmps = await db.select().from(employees);
+    if (existingEmps.length === 0) {
+      await db.insert(employees).values(initialEmployees);
+      console.log(`Seeded ${initialEmployees.length} employees.`);
 
+      const salaryInserts = initialEmployees.map(emp => ({
+        employeeId: emp.id,
+        amount: emp.salaryAmount || 0,
+        currency: emp.salaryCurrency || "USD",
+        effectiveDate: emp.startDate,
+        type: "basic"
+      }));
+      await db.insert(employeeSalaries).values(salaryInserts);
+      console.log(`Seeded ${salaryInserts.length} employee salary configurations.`);
+    } else {
+      console.log("Employees already exist, skipping.");
+    }
   } catch (error) {
-    console.error("❌ Error seeding employees:", error);
+    console.error("Error seeding employees:", error);
   }
 
   // 5. Seed Leads
@@ -879,12 +849,12 @@ async function seed() {
     const existingLeads = await db.select().from(leads);
     if (existingLeads.length === 0) {
       await db.insert(leads).values(initialLeads);
-      console.log(`✅ Seeded ${initialLeads.length} leads.`);
+      console.log(`Seeded ${initialLeads.length} leads.`);
     } else {
-      console.log("ℹ️ Leads table not empty, skipping seed.");
+      console.log("Leads already exist, skipping.");
     }
   } catch (error) {
-    console.error("❌ Error seeding leads:", error);
+    console.error("Error seeding leads:", error);
   }
 
   // 6. Seed Clients & Services
@@ -892,64 +862,52 @@ async function seed() {
     const existingClients = await db.select().from(clients);
     if (existingClients.length === 0) {
       for (const clientData of initialClients) {
-        // Separate services from client data
         const { services, ...clientFields } = clientData;
-        
-        // Insert client
         const clientId = clientFields.id ?? crypto.randomUUID();
         await db.insert(clients).values({ ...clientFields, id: clientId });
-        
-        // Insert services
+
         if (services && services.length > 0) {
           const serviceInserts = services.map(s => ({
             id: s.id,
             clientId,
             mainPackageId: s.mainPackageId,
-            subPackageId: null, // Default to null if not in seed
+            subPackageId: null,
             serviceName: s.serviceName,
             serviceNameEn: s.serviceNameEn || s.serviceName,
             startDate: s.startDate,
-            endDate: s.dueDate, // Mapping dueDate to endDate
+            endDate: s.dueDate,
             price: s.price,
             currency: s.currency,
             status: s.status,
             executionEmployeeIds: s.serviceAssignees,
             salesEmployeeId: clientFields.salesOwnerId,
           }));
-          
           await db.insert(clientServices).values(serviceInserts);
         }
       }
-      console.log(`✅ Seeded ${initialClients.length} clients and their services.`);
+      console.log(`Seeded ${initialClients.length} clients and their services.`);
     } else {
-      console.log("ℹ️ Clients table not empty, skipping seed.");
+      console.log("Clients already exist, skipping.");
     }
   } catch (error) {
-    console.error("❌ Error seeding clients:", error);
+    console.error("Error seeding clients:", error);
   }
 
   // 7. Seed Invoices
-  console.log("💰 Seeding Invoices...");
+  console.log("Seeding Invoices...");
   try {
-    await db.insert(invoices).values(initialInvoices).onDuplicateKeyUpdate({
-      set: {
-        invoiceNumber: sql`VALUES(invoice_number)`,
-        clientId: sql`VALUES(client_id)`,
-        clientName: sql`VALUES(client_name)`,
-        amount: sql`VALUES(amount)`,
-        currency: sql`VALUES(currency)`,
-        status: sql`VALUES(status)`,
-        issueDate: sql`VALUES(issue_date)`,
-        dueDate: sql`VALUES(due_date)`,
-        paidDate: sql`VALUES(paid_date)`,
-        items: sql`VALUES(items)`,
-      },
-    });
+    const existingInvoices = await db.select().from(invoices);
+    if (existingInvoices.length === 0) {
+      await db.insert(invoices).values(initialInvoices);
+      console.log(`Seeded ${initialInvoices.length} invoices.`);
+    } else {
+      console.log("Invoices already exist, skipping.");
+    }
   } catch (error) {
-    console.error("❌ Error seeding invoices:", error);
+    console.error("Error seeding invoices:", error);
   }
 
-  console.log("✨ Seed process completed.");
+  console.log("Seed process completed.");
   process.exit(0);
 }
 
