@@ -31,7 +31,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import logoPath from "@assets/LOGO_04_1769636182889.png";
+import logoPath from "@assets/logo.png";
 
 const menuItems = [
   { icon: LayoutDashboard, path: "/", labelKey: "nav.dashboard", permissions: [] },

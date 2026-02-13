@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Loader2, Eye, EyeOff, Lock, Mail, Moon, Sun, Globe } from "lucide-react";
-import logoPath from "@assets/LOGO_04_1769636182889.png";
+import logoPath from "@assets/logo.png";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
