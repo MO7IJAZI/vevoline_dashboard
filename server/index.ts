@@ -265,5 +265,3 @@ app.use((req, res, next) => {
 if (typeof module !== 'undefined' && 'exports' in module) {
   (module as any).exports = app;
 }
-
-export default app;
