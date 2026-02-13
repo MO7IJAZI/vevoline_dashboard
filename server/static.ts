@@ -11,6 +11,8 @@ export function serveStatic(app: Express) {
   const possiblePaths = [
     path.resolve(process.cwd(), "dist", "public"),
     path.resolve(process.cwd(), "public"),
+    // Passenger often sets the root to the domain folder
+    path.resolve("/home/u884871213/domains/vevoline.space/public_html/dist/public"),
   ];
 
   // Try to use __dirname if available (it is in CJS)

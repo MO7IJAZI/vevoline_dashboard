@@ -231,3 +231,6 @@ app.use((req, res, next) => {
     process.exit(1);
   }
 })();
+
+// Export for Phusion Passenger
+export default app;
