@@ -1243,7 +1243,7 @@ export async function registerRoutes(
   app.post("/api/work-sessions/:id/break", async (req, res) => {
     try {
       const { breakType, note } = z.object({
-        breakType: z.enum(["short", "long", "lunch"]).optional(),
+        breakType: z.enum(["short", "long", "lunch", "meeting", "other"]).optional(),
         note: z.string().optional()
       }).parse(req.body);
       
