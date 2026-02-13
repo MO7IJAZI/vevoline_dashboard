@@ -8,7 +8,6 @@ import path from "path";
 const allowlist = [
   "@google/generative-ai",
   "axios",
-  "express-mysql-session",
   "cors",
   "date-fns",
   "drizzle-orm",
@@ -24,7 +23,6 @@ const allowlist = [
   "openai",
   "passport",
   "passport-local",
-  "mysql2",
   "stripe",
   "uuid",
   "ws",
@@ -34,9 +32,6 @@ const allowlist = [
 ];
 
 async function buildAll() {
-  if (process.platform === "win32" && !process.env.ESBUILD_BINARY_PATH) {
-    process.env.ESBUILD_BINARY_PATH = path.resolve("node_modules/@esbuild/win32-x64/gesbuild.exe");
-  }
   await rm("dist", { recursive: true, force: true });
 
   console.log("building client...");

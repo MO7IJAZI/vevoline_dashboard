@@ -32,6 +32,11 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Health check
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok", time: new Date().toISOString() });
+  });
+
   // Goals API
   
   // Get all goals

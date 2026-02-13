@@ -40,16 +40,23 @@ const isProduction = process.env.NODE_ENV === "production";
 console.log(`[Session] Config: secure=${isProduction}, maxAge=${SESSION_MAX_AGE}ms`);
 
 const databaseUrl = process.env.DATABASE_URL;
-const sessionConnection = databaseUrl ? new URL(databaseUrl) : null;
+let sessionConnection: URL | null = null;
+try {
+  if (databaseUrl) {
+    sessionConnection = new URL(databaseUrl);
+  }
+} catch (err) {
+  console.error("[Session] Failed to parse DATABASE_URL for session store:", err);
+}
 
 app.use(
   session({
     store: new MySqlSession({
-      host: sessionConnection?.hostname,
-      port: sessionConnection?.port ? Number(sessionConnection.port) : undefined,
-      user: sessionConnection?.username,
-      password: sessionConnection?.password,
-      database: sessionConnection?.pathname ? sessionConnection.pathname.slice(1) : undefined,
+      host: sessionConnection?.hostname || "localhost",
+      port: sessionConnection?.port ? Number(sessionConnection.port) : 3306,
+      user: sessionConnection?.username || "",
+      password: sessionConnection?.password || "",
+      database: sessionConnection?.pathname ? sessionConnection.pathname.slice(1) : "",
       createDatabaseTable: true,
       schema: {
         tableName: "session",
@@ -111,51 +118,62 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  await initializeEmailTransporter();
-  
-  registerAuthRoutes(app);
-  registerWorkTrackingRoutes(app);
-  registerClientPortalRoutes(app);
-  
-  await seedAdminUser();
-  
-  await registerRoutes(httpServer, app);
+  try {
+    log("Starting server initialization...");
+    await initializeEmailTransporter();
+    
+    registerAuthRoutes(app);
+    registerWorkTrackingRoutes(app);
+    registerClientPortalRoutes(app);
+    
+    log("Seeding admin user...");
+    await seedAdminUser();
+    
+    log("Registering routes...");
+    await registerRoutes(httpServer, app);
 
-  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
 
-    console.error("Internal Server Error:", err);
+      console.error("Internal Server Error:", err);
 
-    if (res.headersSent) {
-      return next(err);
+      if (res.headersSent) {
+        return next(err);
+      }
+
+      return res.status(status).json({ message });
+    });
+
+    // importantly only setup vite in development and after
+    // setting up all the other routes so the catch-all route
+    // doesn't interfere with the other routes
+    if (process.env.NODE_ENV === "production") {
+      serveStatic(app);
+    } else {
+      const { setupVite } = await import("./vite");
+      await setupVite(httpServer, app);
     }
 
-    return res.status(status).json({ message });
-  });
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
-  } else {
-    const { setupVite } = await import("./vite");
-    await setupVite(httpServer, app);
+    // ALWAYS serve the app on the port specified in the environment variable PORT
+    // Other ports are firewalled. Default to 5000 if not specified.
+    // this serves both the API and the client.
+    // It is the only port that is not firewalled.
+    const port = parseInt(process.env.PORT || "5000", 10);
+    httpServer.listen(
+      {
+        port,
+        host: "0.0.0.0",
+      },
+      () => {
+        log(`serving on port ${port}`);
+      },
+    );
+  } catch (err) {
+    console.error("CRITICAL ERROR DURING STARTUP:", err);
+    // On Hostinger, we want to avoid immediate crash if possible, 
+    // but a critical error during startup is usually fatal.
+    // At least we logged it.
+    process.exit(1);
   }
-
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
 })();

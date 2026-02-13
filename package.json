@@ -7,7 +7,7 @@
     "dev": "node node_modules/tsx/dist/cli.mjs server/index.ts",
     "build": "node node_modules/tsx/dist/cli.mjs script/build.ts",
     "postbuild": "node -e \"const fs=require('fs'); fs.copyFileSync('dist/index.cjs','dist/index.js')\"",
-    "start": "node dist/index.cjs",
+    "start": "cross-env NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node node_modules/tsx/dist/cli.mjs server/migrate.ts",
