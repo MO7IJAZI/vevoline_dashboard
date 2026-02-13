@@ -4,7 +4,7 @@ import { rm, readFile } from "fs/promises";
 import path from "path";
 
 // server deps to bundle to reduce openat(2) syscalls
-// which helps cold start times
+// which helps cold start times and prevents missing dependency errors on Hostinger
 const allowlist = [
   "@google/generative-ai",
   "axios",
@@ -15,6 +15,7 @@ const allowlist = [
   "express",
   "express-rate-limit",
   "express-session",
+  "express-mysql-session",
   "jsonwebtoken",
   "memorystore",
   "multer",
@@ -29,6 +30,9 @@ const allowlist = [
   "xlsx",
   "zod",
   "zod-validation-error",
+  "dotenv",
+  "bcrypt",
+  "mysql2",
 ];
 
 async function buildAll() {
