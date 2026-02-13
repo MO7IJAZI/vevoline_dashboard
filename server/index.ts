@@ -220,8 +220,13 @@ app.use((req, res, next) => {
       }
     } else {
       fileLog("Setting up Vite development server (Development Mode)");
-      const { setupVite } = await import("./vite");
-      await setupVite(app, httpServer);
+      try {
+        const { setupVite } = await import("./vite");
+        await setupVite(httpServer, app);
+        fileLog("✅ Vite setup complete");
+      } catch (viteErr: any) {
+        fileLog(`❌ Failed to setup Vite: ${viteErr?.message || viteErr}`);
+      }
     }
 
     const PORT = Number(process.env.PORT) || 5000;
