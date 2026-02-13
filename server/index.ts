@@ -10,9 +10,25 @@ import { registerWorkTrackingRoutes } from "./workTracking";
 import { registerClientPortalRoutes } from "./clientPortal";
 import { initializeEmailTransporter } from "./email";
 import { pool } from "./db";
+import fs from "fs";
+import path from "path";
 
 const app = express();
 const httpServer = createServer(app);
+
+// Custom File Logger for Hostinger diagnostics
+function fileLog(message: string) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `${timestamp} - ${message}\n`;
+  try {
+    fs.appendFileSync(path.join(process.cwd(), "startup_debug.txt"), logMessage);
+  } catch (e) {
+    // ignore logging errors
+  }
+  console.log(message);
+}
+
+fileLog("--- SERVER STARTUP SEQUENCE ---");
 
 declare module "http" {
   interface IncomingMessage {
@@ -40,8 +56,7 @@ const SESSION_MAX_AGE = parseInt(process.env.SESSION_MAX_AGE || String(8 * 60 * 
 // We can also check if we're running from the bundled dist directory.
 const isProduction = process.env.NODE_ENV === "production" || process.argv[1].includes("dist");
 
-console.log(`[Server] Environment: ${isProduction ? "production" : "development"}`);
-console.log(`[Session] Config: secure=${isProduction}, maxAge=${SESSION_MAX_AGE}ms`);
+fileLog(`Environment: ${isProduction ? "production" : "development"}`);
 
 const databaseUrl = process.env.DATABASE_URL;
 let sessionConfig: any = {
@@ -64,7 +79,7 @@ if (databaseUrl) {
       database: url.pathname ? url.pathname.slice(1) : ""
     };
   } catch (err) {
-    log("[Session] Standard URL parsing failed, attempting manual regex parsing for DATABASE_URL");
+    fileLog("Standard URL parsing failed, attempting manual regex parsing for DATABASE_URL");
     // Manual parsing for complex passwords with special characters like '?'
     const regex = /mysql:\/\/([^:]+):(.*)@([^:/]+)(?::(\d+))?\/(.+)/;
     const match = databaseUrl.match(regex);
@@ -76,9 +91,9 @@ if (databaseUrl) {
         port: match[4] ? Number(match[4]) : 3306,
         database: match[5]
       };
-      log("[Session] Manual regex parsing successful");
+      fileLog("Manual regex parsing successful");
     } else {
-      console.error("[Session] All DATABASE_URL parsing attempts failed");
+      fileLog("CRITICAL: All DATABASE_URL parsing attempts failed");
     }
   }
 }
@@ -145,18 +160,16 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
-    log("Starting server initialization...");
+    fileLog("Starting initialization sequence...");
     
     // Test database connection early
     try {
-      log("Testing database connection...");
+      fileLog("Testing database connection...");
       const connection = await pool.getConnection();
-      log("✅ Database connection successful");
+      fileLog("✅ Database connection successful");
       connection.release();
-    } catch (dbErr) {
-      console.error("❌ DATABASE CONNECTION FAILED:", dbErr);
-      // In production (Hostinger), we don't necessarily want to kill the process immediately
-      // if the DB is just temporarily down, but it's a critical error.
+    } catch (dbErr: any) {
+      fileLog(`❌ DATABASE CONNECTION FAILED: ${dbErr?.message || dbErr}`);
     }
 
     await initializeEmailTransporter();
@@ -165,21 +178,20 @@ app.use((req, res, next) => {
     registerWorkTrackingRoutes(app);
     registerClientPortalRoutes(app);
     
-    log("Seeding admin user...");
+    fileLog("Seeding admin user...");
     try {
       await seedAdminUser();
-      log("✅ Admin user seeding checked");
-    } catch (seedErr) {
-      console.error("⚠️ Seeding admin user failed (continuing anyway):", seedErr);
+      fileLog("✅ Admin user seeding checked");
+    } catch (seedErr: any) {
+      fileLog(`⚠️ Seeding admin user failed: ${seedErr?.message || seedErr}`);
     }
     
-    log("Registering routes...");
+    fileLog("Registering routes...");
     try {
       await registerRoutes(httpServer, app);
-      log("✅ Routes registered");
-    } catch (routeErr) {
-      console.error("❌ CRITICAL: Failed to register routes:", routeErr);
-      // Don't throw, try to continue to serve static files if possible
+      fileLog("✅ Routes registered");
+    } catch (routeErr: any) {
+      fileLog(`❌ CRITICAL: Failed to register routes: ${routeErr?.message || routeErr}`);
     }
 
     app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -199,57 +211,41 @@ app.use((req, res, next) => {
     // setting up all the other routes so the catch-all route
     // doesn't interfere with the other routes
     if (isProduction) {
-      log("Setting up static file serving (Production Mode)");
+      fileLog("Setting up static file serving (Production Mode)");
       try {
         serveStatic(app);
-        log("✅ Static files setup complete");
-      } catch (staticErr) {
-        console.error("❌ Failed to setup static serving:", staticErr);
+        fileLog("✅ Static files setup complete");
+      } catch (staticErr: any) {
+        fileLog(`❌ Failed to setup static serving: ${staticErr?.message || staticErr}`);
       }
     } else {
-      log("Setting up Vite development server (Development Mode)");
+      fileLog("Setting up Vite development server (Development Mode)");
       const { setupVite } = await import("./vite");
-      await setupVite(httpServer, app);
+      await setupVite(app, httpServer);
     }
 
-    // ALWAYS serve the app on the port specified in the environment variable PORT
-    // Other ports are firewalled. Default to 5000 if not specified.
-    // this serves both the API and the client.
-    // It is the only port that is not firewalled.
     const PORT = Number(process.env.PORT) || 5000;
-
+    
     // In Passenger, we should check if we should listen
     // Passenger typically manages the port/socket
     if (!process.env.PASSENGER_APP_ENV) {
       httpServer.listen(PORT, "0.0.0.0", () => {
-        log(`serving on port ${PORT}`);
+        fileLog(`serving on port ${PORT}`);
       });
     } else {
-      log("Running under Phusion Passenger - listener managed by web server");
+      fileLog("Running under Phusion Passenger - listener managed by web server");
     }
-  } catch (err) {
-    console.error("CRITICAL ERROR DURING STARTUP:", err);
-    // Log process details to help debug environment issues
-    console.error("Process Details:", {
-      cwd: process.cwd(),
-      nodeVersion: process.version,
-      platform: process.platform,
-      env: {
-        NODE_ENV: process.env.NODE_ENV,
-        PORT: process.env.PORT,
-        HAS_DATABASE_URL: !!process.env.DATABASE_URL,
-        IS_PASSENGER: !!process.env.PASSENGER_APP_ENV
-      }
-    });
-    // In Passenger, we don't always want to exit(1) as it might restart in a loop
-    // But for a critical startup error, we have no choice.
+  } catch (err: any) {
+    fileLog(`CRITICAL ERROR DURING STARTUP: ${err?.message || err}`);
+    fileLog(`Process Details: cwd=${process.cwd()}, node=${process.version}, platform=${process.platform}`);
+    
     if (!process.env.PASSENGER_APP_ENV) {
       process.exit(1);
     }
   }
 })();
 
-// Export for Phusion Passenger
+// Compatibility export for various environments
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = app;
 }
