@@ -234,8 +234,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteGoal(id: string): Promise<boolean> {
-    const [result] = await db.delete(goals).where(eq(goals.id, id));
-    return result.affectedRows > 0;
+    const result = await db.delete(goals).where(eq(goals.id, id)).returning();
+    return result.length > 0;
   }
 
   async getTransactions(filters: TransactionFilters): Promise<Transaction[]> {
@@ -290,8 +290,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTransaction(id: string): Promise<boolean> {
-    const [result] = await db.delete(transactions).where(eq(transactions.id, id));
-    return result.affectedRows > 0;
+    const result = await db.delete(transactions).where(eq(transactions.id, id)).returning();
+    return result.length > 0;
   }
 
   async getClientPayments(filters: PaymentFilters): Promise<ClientPayment[]> {
@@ -373,8 +373,8 @@ export class DatabaseStorage implements IStorage {
   async deleteClientPayment(id: string): Promise<boolean> {
     return await db.transaction(async (tx) => {
       await tx.delete(transactions).where(and(eq(transactions.relatedType, "client_payment"), eq(transactions.relatedId, id)));
-      const [result] = await tx.delete(clientPayments).where(eq(clientPayments.id, id));
-      return result.affectedRows > 0;
+      const result = await tx.delete(clientPayments).where(eq(clientPayments.id, id)).returning();
+      return result.length > 0;
     });
   }
 
@@ -497,8 +497,8 @@ export class DatabaseStorage implements IStorage {
           ));
       }
 
-      const [result] = await tx.delete(payrollPayments).where(eq(payrollPayments.id, id));
-      return result.affectedRows > 0;
+      const result = await tx.delete(payrollPayments).where(eq(payrollPayments.id, id)).returning();
+      return result.length > 0;
     });
   }
 
@@ -696,8 +696,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteCalendarEvent(id: string): Promise<boolean> {
-    const [result] = await db.delete(calendarEvents).where(eq(calendarEvents.id, id));
-    return result.affectedRows > 0;
+    const result = await db.delete(calendarEvents).where(eq(calendarEvents.id, id)).returning();
+    return result.length > 0;
   }
 
   // ========== NOTIFICATIONS METHODS ==========
@@ -774,8 +774,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteNotification(id: string): Promise<boolean> {
-    const [result] = await db.delete(notifications).where(eq(notifications.id, id));
-    return result.affectedRows > 0;
+    const result = await db.delete(notifications).where(eq(notifications.id, id)).returning();
+    return result.length > 0;
   }
 
   // ========== WORK SESSIONS METHODS ==========
@@ -905,8 +905,8 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(clientUsers).where(eq(clientUsers.clientId, id));
       
       // Delete the client
-      const [result] = await tx.delete(clients).where(eq(clients.id, id));
-      return result.affectedRows > 0;
+      const result = await tx.delete(clients).where(eq(clients.id, id)).returning();
+      return result.length > 0;
     });
   }
 
@@ -1083,8 +1083,8 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(workActivityLogs).where(eq(workActivityLogs.serviceId, id));
       
       // Delete service
-      const [result] = await tx.delete(clientServices).where(eq(clientServices.id, id));
-      return result.affectedRows > 0;
+      const result = await tx.delete(clientServices).where(eq(clientServices.id, id)).returning();
+      return result.length > 0;
     });
   }
 
@@ -1120,8 +1120,8 @@ export class DatabaseStorage implements IStorage {
       // Delete sub-packages first
       await tx.delete(subPackages).where(eq(subPackages.mainPackageId, id));
       // Delete main package
-      const [result] = await tx.delete(mainPackages).where(eq(mainPackages.id, id));
-      return result.affectedRows > 0;
+      const result = await tx.delete(mainPackages).where(eq(mainPackages.id, id)).returning();
+      return result.length > 0;
     });
   }
 
@@ -1154,8 +1154,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteSubPackage(id: string): Promise<boolean> {
-    const [result] = await db.delete(subPackages).where(eq(subPackages.id, id));
-    return result.affectedRows > 0;
+    const result = await db.delete(subPackages).where(eq(subPackages.id, id)).returning();
+    return result.length > 0;
   }
 
   // ========== INVOICES METHODS ==========
@@ -1199,8 +1199,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteInvoice(id: string): Promise<boolean> {
-    const [result] = await db.delete(invoices).where(eq(invoices.id, id));
-    return result.affectedRows > 0;
+    const result = await db.delete(invoices).where(eq(invoices.id, id)).returning();
+    return result.length > 0;
   }
 
   // ========== EMPLOYEES METHODS ==========
@@ -1241,8 +1241,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteEmployee(id: string): Promise<boolean> {
-    const [result] = await db.delete(employees).where(eq(employees.id, id));
-    return result.affectedRows > 0;
+    const result = await db.delete(employees).where(eq(employees.id, id)).returning();
+    return result.length > 0;
   }
 
   // ========== SYSTEM SETTINGS METHODS ==========
@@ -1313,8 +1313,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteLead(id: string): Promise<boolean> {
-    const [result] = await db.delete(leads).where(eq(leads.id, id));
-    return result.affectedRows > 0;
+    const result = await db.delete(leads).where(eq(leads.id, id)).returning();
+    return result.length > 0;
   }
 
   async convertLeadToClient(leadId: string): Promise<Client> {

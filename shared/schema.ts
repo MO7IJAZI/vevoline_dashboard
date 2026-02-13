@@ -1,29 +1,28 @@
 
-import { mysqlTable, text, int, boolean, timestamp, varchar, json } from "drizzle-orm/mysql-core";
+import { pgTable, text, integer, boolean, timestamp, varchar, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { sql, type InferSelectModel, type InferInsertModel } from "drizzle-orm";
 
-export const session = mysqlTable("session", {
+export const session = pgTable("session", {
   sid: varchar("sid", { length: 255 }).primaryKey(),
-  sess: json("sess").notNull(),
+  sess: jsonb("sess").notNull(),
   expire: timestamp("expire").notNull(),
 });
 
-// Users & Auth
-export const users = mysqlTable("users", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const users = pgTable("users", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
-  role: text("role").notNull().default("employee"), // "admin", "manager", "employee"
-  permissions: json("permissions").default(sql`(JSON_ARRAY())`), // Array of permission strings
+  role: text("role").notNull().default("employee"),
+  permissions: jsonb("permissions").default(sql`'[]'::jsonb`),
   avatar: text("avatar"),
   isActive: boolean("is_active").notNull().default(true),
   nameEn: text("name_en"),
   department: text("department"),
   employeeId: text("employee_id"),
-  lastLogin: timestamp("last_login").default(sql`NULL`),
+  lastLogin: timestamp("last_login"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -38,16 +37,15 @@ export const insertUserSchema = createInsertSchema(users).omit({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = InferSelectModel<typeof users>;
 
-// Client Users (for customer portal)
-export const clientUsers = mysqlTable("client_users", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const clientUsers = pgTable("client_users", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
-  clientId: text("client_id").notNull(), // References clients.id
+  clientId: text("client_id").notNull(),
   clientName: text("client_name").notNull(),
   clientNameEn: text("client_name_en"),
   isActive: boolean("is_active").notNull().default(true),
-  lastLogin: timestamp("last_login").default(sql`NULL`),
+  lastLogin: timestamp("last_login"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -62,20 +60,19 @@ export const insertClientUserSchema = createInsertSchema(clientUsers).omit({
 export type InsertClientUser = z.infer<typeof insertClientUserSchema>;
 export type ClientUser = InferSelectModel<typeof clientUsers>;
 
-// Invitations (for new users)
-export const invitations = mysqlTable("invitations", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const invitations = pgTable("invitations", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull(),
   role: text("role").notNull().default("employee"),
-  permissions: json("permissions").default(sql`(JSON_ARRAY())`),
+  permissions: jsonb("permissions").default(sql`'[]'::jsonb`),
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
-  status: text("status").notNull().default("pending"), // "pending", "accepted", "expired"
+  status: text("status").notNull().default("pending"),
   name: text("name"),
   nameEn: text("name_en"),
   department: text("department"),
   employeeId: text("employee_id"),
-  usedAt: timestamp("used_at").default(sql`NULL`),
+  usedAt: timestamp("used_at"),
   invitedBy: text("invited_by"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -88,7 +85,6 @@ export const insertInvitationSchema = createInsertSchema(invitations).omit({
 export type InsertInvitation = z.infer<typeof insertInvitationSchema>;
 export type Invitation = InferSelectModel<typeof invitations>;
 
-// Permissions
 export const PermissionEnum = z.enum([
   "view_clients", "edit_clients", "archive_clients",
   "view_leads", "edit_leads",
@@ -102,13 +98,12 @@ export const PermissionEnum = z.enum([
 
 export type Permission = z.infer<typeof PermissionEnum>;
 
-// Password reset tokens
-export const passwordResets = mysqlTable("password_resets", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const passwordResets = pgTable("password_resets", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull(),
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
-  usedAt: timestamp("used_at").default(sql`NULL`),
+  usedAt: timestamp("used_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -130,7 +125,6 @@ export const goalTypeConfigs: Record<GoalType, { labelAr: string; labelEn: strin
   custom: { labelAr: "مخصص", labelEn: "Custom", isPercentage: false, hasCurrency: false, hasCountry: false, defaultIcon: "Star" },
 };
 
-// Goal Types
 export const GoalTypeEnum = z.enum([
   "financial",
   "clients",
@@ -142,15 +136,12 @@ export const GoalTypeEnum = z.enum([
 
 export type GoalType = z.infer<typeof GoalTypeEnum>;
 
-// Currency Types - Extended for Finance
 export const CurrencyEnum = z.enum(["TRY", "USD", "EUR", "SAR", "EGP", "AED"]);
 export type Currency = z.infer<typeof CurrencyEnum>;
 
-// Transaction Types
 export const TransactionTypeEnum = z.enum(["income", "expense"]);
 export type TransactionType = z.infer<typeof TransactionTypeEnum>;
 
-// Expense Categories
 export const ExpenseCategoryEnum = z.enum([
   "salaries",
   "ads",
@@ -167,23 +158,22 @@ export const ExpenseCategoryEnum = z.enum([
 ]);
 export type ExpenseCategory = z.infer<typeof ExpenseCategoryEnum>;
 
-// Leads (CRM)
-export const leads = mysqlTable("leads", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const leads = pgTable("leads", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   email: text("email"),
   phone: text("phone"),
   company: text("company"),
   country: text("country"),
   source: text("source"),
-  stage: text("stage").notNull().default("new"), // "new", "contacted", "proposal_sent", "negotiation", "won", "lost"
-  dealValue: int("deal_value"),
+  stage: text("stage").notNull().default("new"),
+  dealValue: integer("deal_value"),
   dealCurrency: text("deal_currency"),
   notes: text("notes"),
-  negotiatorId: text("negotiator_id"), // Employee handling the lead
+  negotiatorId: text("negotiator_id"),
   wasConfirmedClient: boolean("was_confirmed_client").default(false),
   convertedFromClientId: text("converted_from_client_id"),
-  preservedClientData: json("preserved_client_data"),
+  preservedClientData: jsonb("preserved_client_data"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -197,22 +187,21 @@ export const insertLeadSchema = createInsertSchema(leads).omit({
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 export type Lead = InferSelectModel<typeof leads>;
 
-// Clients
-export const clients = mysqlTable("clients", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const clients = pgTable("clients", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   email: text("email"),
   phone: text("phone"),
   company: text("company"),
   country: text("country"),
   source: text("source"),
-  status: text("status").notNull().default("active"), // "active", "inactive"
-  salesOwnerId: text("sales_owner_id"), // Main sales person
-  assignedManagerId: text("assigned_manager_id"), // Account manager
-  convertedFromLeadId: text("converted_from_lead_id"), // Lead ID if converted
-  leadCreatedAt: timestamp("lead_created_at").default(sql`NULL`), // Original lead creation date (for sales stats)
-  salesOwners: json("sales_owners").default(sql`(JSON_ARRAY())`), // Array of IDs
-  assignedStaff: json("assigned_staff").default(sql`(JSON_ARRAY())`), // Array of IDs
+  status: text("status").notNull().default("active"),
+  salesOwnerId: text("sales_owner_id"),
+  assignedManagerId: text("assigned_manager_id"),
+  convertedFromLeadId: text("converted_from_lead_id"),
+  leadCreatedAt: timestamp("lead_created_at"),
+  salesOwners: jsonb("sales_owners").default(sql`'[]'::jsonb`),
+  assignedStaff: jsonb("assigned_staff").default(sql`'[]'::jsonb`),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -227,25 +216,23 @@ export const insertClientSchema = createInsertSchema(clients).omit({
 export type InsertClient = z.infer<typeof insertClientSchema>;
 export type Client = InferSelectModel<typeof clients>;
 
-// Client Services (Active Projects)
-export const clientServices = mysqlTable("client_services", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const clientServices = pgTable("client_services", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   clientId: text("client_id").notNull(),
   mainPackageId: text("main_package_id").notNull(),
   subPackageId: text("sub_package_id"),
   serviceName: text("service_name").notNull(),
   serviceNameEn: text("service_name_en"),
 
-  
   startDate: text("start_date").notNull(),
   endDate: text("end_date"),
-  status: text("status").notNull().default("not_started"), // ServiceStatus
-  price: int("price"),
+  status: text("status").notNull().default("not_started"),
+  price: integer("price"),
   currency: text("currency"),
-  salesEmployeeId: text("sales_employee_id"), // Who brought the client
-  executionEmployeeIds: json("execution_employee_ids").default(sql`(JSON_ARRAY())`), // Who executes the work (Array)
+  salesEmployeeId: text("sales_employee_id"),
+  executionEmployeeIds: jsonb("execution_employee_ids").default(sql`'[]'::jsonb`),
   notes: text("notes"),
-  completedAt: timestamp("completed_at").default(sql`NULL`),
+  completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -260,15 +247,14 @@ export const insertClientServiceSchema = createInsertSchema(clientServices).omit
 export type InsertClientService = z.infer<typeof insertClientServiceSchema>;
 export type ClientService = InferSelectModel<typeof clientServices>;
 
-// Main Packages (Categories)
-export const mainPackages = mysqlTable("main_packages", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const mainPackages = pgTable("main_packages", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   nameEn: text("name_en").notNull(),
   icon: text("icon"),
   description: text("description"),
   descriptionEn: text("description_en"),
-  order: int("order").notNull().default(0),
+  order: integer("order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -283,25 +269,24 @@ export const insertMainPackageSchema = createInsertSchema(mainPackages).omit({
 export type InsertMainPackage = z.infer<typeof insertMainPackageSchema>;
 export type MainPackage = InferSelectModel<typeof mainPackages>;
 
-// Sub-Packages (Plans)
-export const subPackages = mysqlTable("sub_packages", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
-  mainPackageId: text("main_package_id").notNull(), // References mainPackages.id
+export const subPackages = pgTable("sub_packages", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  mainPackageId: text("main_package_id").notNull(),
   name: text("name").notNull(),
   nameEn: text("name_en").notNull(),
-  price: int("price").notNull(),
-  currency: text("currency").notNull(), // Currency enum
-  billingType: text("billing_type").notNull(), // "one_time", "monthly", "quarterly", "yearly"
+  price: integer("price").notNull(),
+  currency: text("currency").notNull(),
+  billingType: text("billing_type").notNull(),
   description: text("description"),
   descriptionEn: text("description_en"),
   duration: text("duration"),
   durationEn: text("duration_en"),
-  deliverables: json("deliverables").default(sql`(JSON_ARRAY())`), // Array of Deliverable
-  platforms: json("platforms").default(sql`(JSON_ARRAY())`), // Array of Platform strings
+  deliverables: jsonb("deliverables").default(sql`'[]'::jsonb`),
+  platforms: jsonb("platforms").default(sql`'[]'::jsonb`),
   features: text("features"),
   featuresEn: text("features_en"),
   isActive: boolean("is_active").notNull().default(true),
-  order: int("order").notNull().default(0),
+  order: integer("order").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -315,19 +300,18 @@ export const insertSubPackageSchema = createInsertSchema(subPackages).omit({
 export type InsertSubPackage = z.infer<typeof insertSubPackageSchema>;
 export type SubPackage = InferSelectModel<typeof subPackages>;
 
-// Invoices
-export const invoices = mysqlTable("invoices", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const invoices = pgTable("invoices", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   invoiceNumber: text("invoice_number").notNull(),
   clientId: text("client_id").notNull(),
   clientName: text("client_name").notNull(),
-  amount: int("amount").notNull(),
+  amount: integer("amount").notNull(),
   currency: text("currency").notNull(),
-  status: text("status").notNull().default("draft"), // "draft", "sent", "paid", "overdue"
+  status: text("status").notNull().default("draft"),
   issueDate: text("issue_date").notNull(),
   dueDate: text("due_date").notNull(),
   paidDate: text("paid_date"),
-  items: json("items").notNull().default(sql`(JSON_ARRAY())`), // Array of items
+  items: jsonb("items").notNull().default(sql`'[]'::jsonb`),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -342,23 +326,21 @@ export const insertInvoiceSchema = createInsertSchema(invoices).omit({
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Invoice = InferSelectModel<typeof invoices>;
 
-// Employees (HR Data)
-export const employees = mysqlTable("employees", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const employees = pgTable("employees", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   nameEn: text("name_en"),
   email: text("email").notNull().unique(),
   phone: text("phone"),
-  role: text("role").notNull(), // Role/Job title in English
-  roleAr: text("role_ar"), // Role/Job title in Arabic
+  role: text("role").notNull(),
+  roleAr: text("role_ar"),
   department: text("department"),
-  jobTitle: text("job_title"), // Specific job title/specialization
+  jobTitle: text("job_title"),
   profileImage: text("profile_image"),
-  // Salary Info
-  salaryType: text("salary_type").notNull().default("monthly"), // "monthly", "per_project"
-  salaryAmount: int("salary_amount"),
-  rate: int("rate"),
-  rateType: text("rate_type"), // "per_project", "per_task", "per_service"
+  salaryType: text("salary_type").notNull().default("monthly"),
+  salaryAmount: integer("salary_amount"),
+  rate: integer("rate"),
+  rateType: text("rate_type"),
   salaryCurrency: text("salary_currency").notNull().default("USD"),
   salaryNotes: text("salary_notes"),
   startDate: text("start_date").notNull(),
@@ -376,17 +358,16 @@ export const insertEmployeeSchema = createInsertSchema(employees).omit({
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
 export type Employee = InferSelectModel<typeof employees>;
 
-// Service Deliverables (Progress Tracking)
-export const serviceDeliverables = mysqlTable("service_deliverables", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
-  serviceId: text("service_id").notNull(), // References clientServices.id
-  key: text("key").notNull(), // Deliverable key (e.g., "posts", "reels")
+export const serviceDeliverables = pgTable("service_deliverables", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  serviceId: text("service_id").notNull(),
+  key: text("key").notNull(),
   labelAr: text("label_ar").notNull(),
   labelEn: text("label_en").notNull(),
-  target: int("target").notNull(), // Total required
-  completed: int("completed").notNull().default(0), // Completed count
+  target: integer("target").notNull(),
+  completed: integer("completed").notNull().default(0),
   icon: text("icon"),
-  isBoolean: boolean("is_boolean").default(false), // For Yes/No deliverables like "Website Live"
+  isBoolean: boolean("is_boolean").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -400,13 +381,12 @@ export const insertServiceDeliverableSchema = createInsertSchema(serviceDelivera
 export type InsertServiceDeliverable = z.infer<typeof insertServiceDeliverableSchema>;
 export type ServiceDeliverable = InferSelectModel<typeof serviceDeliverables>;
 
-// Work Activity Log (for tracking updates)
-export const workActivityLogs = mysqlTable("work_activity_logs", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const workActivityLogs = pgTable("work_activity_logs", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   serviceId: text("service_id").notNull(),
   deliverableId: text("deliverable_id"),
   employeeId: text("employee_id"),
-  action: text("action").notNull(), // "updated", "completed", "status_changed"
+  action: text("action").notNull(),
   previousValue: text("previous_value"),
   newValue: text("new_value"),
   notes: text("notes"),
@@ -421,9 +401,8 @@ export const insertWorkActivityLogSchema = createInsertSchema(workActivityLogs).
 export type InsertWorkActivityLog = z.infer<typeof insertWorkActivityLogSchema>;
 export type WorkActivityLog = InferSelectModel<typeof workActivityLogs>;
 
-// Service Reports
-export const serviceReports = mysqlTable("service_reports", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const serviceReports = pgTable("service_reports", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   serviceId: text("service_id").notNull(),
   title: text("title").notNull(),
   content: text("content"),
@@ -440,21 +419,20 @@ export const insertServiceReportSchema = createInsertSchema(serviceReports).omit
 export type InsertServiceReport = z.infer<typeof insertServiceReportSchema>;
 export type ServiceReport = InferSelectModel<typeof serviceReports>;
 
-// Transactions (Finance)
-export const transactions = mysqlTable("transactions", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const transactions = pgTable("transactions", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   description: text("description").notNull(),
-  amount: int("amount").notNull(),
-  currency: text("currency").notNull(), // Currency enum
-  type: text("type").notNull(), // TransactionType enum (income, expense)
-  category: text("category").notNull(), // ExpenseCategory enum or other
+  amount: integer("amount").notNull(),
+  currency: text("currency").notNull(),
+  type: text("type").notNull(),
+  category: text("category").notNull(),
   date: text("date").notNull(),
-  relatedId: text("related_id"), // Reference to invoiceId, employeeId, etc.
-  relatedType: text("related_type"), // "invoice", "salary", "project", "other"
-  status: text("status").notNull().default("completed"), // "pending", "completed", "cancelled"
+  relatedId: text("related_id"),
+  relatedType: text("related_type"),
+  status: text("status").notNull().default("completed"),
   notes: text("notes"),
-  clientId: text("client_id"), // For income transactions
-  serviceId: text("service_id"), // For income transactions
+  clientId: text("client_id"),
+  serviceId: text("service_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -468,16 +446,15 @@ export const insertTransactionSchema = createInsertSchema(transactions).omit({
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = InferSelectModel<typeof transactions>;
 
-// Client Payments
-export const clientPayments = mysqlTable("client_payments", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const clientPayments = pgTable("client_payments", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   clientId: text("client_id").notNull(),
   serviceId: text("service_id"),
-  amount: int("amount").notNull(),
+  amount: integer("amount").notNull(),
   currency: text("currency").notNull(),
   paymentDate: text("payment_date").notNull(),
-  month: int("month").notNull(),
-  year: int("year").notNull(),
+  month: integer("month").notNull(),
+  year: integer("year").notNull(),
   paymentMethod: text("payment_method"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -491,19 +468,18 @@ export const insertClientPaymentSchema = createInsertSchema(clientPayments).omit
 export type InsertClientPayment = z.infer<typeof insertClientPaymentSchema>;
 export type ClientPayment = InferSelectModel<typeof clientPayments>;
 
-// Goals (Targets)
-export const goals = mysqlTable("goals", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const goals = pgTable("goals", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  type: text("type").notNull(), // GoalType enum
-  month: int("month").notNull(),
-  year: int("year").notNull(),
-  target: int("target").notNull(),
-  current: int("current").default(0),
+  type: text("type").notNull(),
+  month: integer("month").notNull(),
+  year: integer("year").notNull(),
+  target: integer("target").notNull(),
+  current: integer("current").default(0),
   currency: text("currency"),
   icon: text("icon"),
   notes: text("notes"),
-  status: text("status").notNull().default("not_started"), // "not_started", "in_progress", "achieved", "failed"
+  status: text("status").notNull().default("not_started"),
   responsiblePerson: text("responsible_person"),
   country: text("country"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -519,11 +495,9 @@ export const insertGoalSchema = createInsertSchema(goals).omit({
 export type InsertGoal = z.infer<typeof insertGoalSchema>;
 export type Goal = InferSelectModel<typeof goals>;
 
-// Goal Statuses
 export const GoalStatusEnum = z.enum(["not_started", "in_progress", "achieved", "failed"]);
 export type GoalStatus = z.infer<typeof GoalStatusEnum>;
 
-// Goal Form Schema (for routes.ts)
 export const goalFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   type: GoalTypeEnum,
@@ -541,7 +515,6 @@ export const goalFormSchema = z.object({
 
 export type GoalFormData = z.infer<typeof goalFormSchema>;
 
-// Calendar Event Types
 export const EventTypeEnum = z.enum([
   "manual",
   "package_end",
@@ -567,23 +540,22 @@ export const eventTypeConfigs = {
   task: { color: "#f97316", labelAr: "مهمة", labelEn: "Task" },
 };
 
-// Calendar Events
-export const calendarEvents = mysqlTable("calendar_events", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
-  source: text("source").notNull().default("manual"), // "manual", "system"
-  eventType: text("event_type").notNull().default("manual"), // EventType
+export const calendarEvents = pgTable("calendar_events", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  source: text("source").notNull().default("manual"),
+  eventType: text("event_type").notNull().default("manual"),
   titleAr: text("title_ar").notNull(),
   titleEn: text("title_en"),
-  date: text("date").notNull(), // ISO Date string (YYYY-MM-DD)
-  time: text("time"), // HH:mm format
-  status: text("status").notNull().default("upcoming"), // EventStatus
-  priority: text("priority").notNull().default("medium"), // EventPriority
+  date: text("date").notNull(),
+  time: text("time"),
+  status: text("status").notNull().default("upcoming"),
+  priority: text("priority").notNull().default("medium"),
   clientId: text("client_id"),
   serviceId: text("service_id"),
   employeeId: text("employee_id"),
   salesId: text("sales_id"),
   notes: text("notes"),
-  reminderDays: text("reminder_days"), // JSON array of numbers
+  reminderDays: text("reminder_days"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -597,11 +569,10 @@ export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit
 export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
 export type CalendarEvent = InferSelectModel<typeof calendarEvents>;
 
-// Notifications
-export const notifications = mysqlTable("notifications", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const notifications = pgTable("notifications", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   userId: text("user_id").notNull(),
-  type: text("type").notNull(), // "info", "success", "warning", "error", "reminder"
+  type: text("type").notNull(),
   titleAr: text("title_ar").notNull(),
   titleEn: text("title_en"),
   messageAr: text("message_ar").notNull(),
@@ -609,7 +580,7 @@ export const notifications = mysqlTable("notifications", {
   read: boolean("read").notNull().default(false),
   relatedId: text("related_id"),
   relatedType: text("related_type"),
-  snoozedUntil: timestamp("snoozed_until").default(sql`NULL`),
+  snoozedUntil: timestamp("snoozed_until"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -621,11 +592,9 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = InferSelectModel<typeof notifications>;
 
-// Break Types
 export const BreakTypeEnum = z.enum(["short", "long", "lunch"]);
 export type BreakType = z.infer<typeof BreakTypeEnum>;
 
-// Work Segment Schema
 export const WorkSegmentSchema = z.object({
   type: z.enum(["work", "break"]),
   startAt: z.string(),
@@ -635,17 +604,16 @@ export const WorkSegmentSchema = z.object({
 });
 export type WorkSegment = z.infer<typeof WorkSegmentSchema>;
 
-// Work Sessions
-export const workSessions = mysqlTable("work_sessions", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const workSessions = pgTable("work_sessions", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   employeeId: text("employee_id").notNull(),
-  date: text("date").notNull(), // YYYY-MM-DD
-  startTime: timestamp("start_time").default(sql`NULL`),
-  endTime: timestamp("end_time").default(sql`NULL`),
+  date: text("date").notNull(),
+  startTime: timestamp("start_time"),
+  endTime: timestamp("end_time"),
   status: text("status").notNull().default("not_started"),
-  segments: json("segments").notNull().default(sql`(JSON_ARRAY())`),
-  totalDuration: int("total_duration").notNull().default(0), // in seconds
-  breakDuration: int("break_duration").notNull().default(0), // in seconds
+  segments: jsonb("segments").notNull().default(sql`'[]'::jsonb`),
+  totalDuration: integer("total_duration").notNull().default(0),
+  breakDuration: integer("break_duration").notNull().default(0),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -660,14 +628,13 @@ export const insertWorkSessionSchema = createInsertSchema(workSessions).omit({
 export type InsertWorkSession = z.infer<typeof insertWorkSessionSchema>;
 export type WorkSession = InferSelectModel<typeof workSessions>;
 
-// Payroll Payments (History)
-export const payrollPayments = mysqlTable("payroll_payments", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const payrollPayments = pgTable("payroll_payments", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   employeeId: text("employee_id").notNull(),
-  amount: int("amount").notNull(),
+  amount: integer("amount").notNull(),
   currency: text("currency").notNull(),
   paymentDate: text("payment_date").notNull(),
-  period: text("period").notNull(), // e.g. "2026-01"
+  period: text("period").notNull(),
   status: text("status").notNull().default("paid"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -681,16 +648,13 @@ export const insertPayrollPaymentSchema = createInsertSchema(payrollPayments).om
 export type InsertPayrollPayment = z.infer<typeof insertPayrollPaymentSchema>;
 export type PayrollPayment = InferSelectModel<typeof payrollPayments>;
 
-// Employee Salaries (Configuration) - Note: This might overlap with employees table fields, 
-// but can be used for detailed history or complex structures. 
-// For now, we use fields in 'employees' table.
-export const employeeSalaries = mysqlTable("employee_salaries", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const employeeSalaries = pgTable("employee_salaries", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   employeeId: text("employee_id").notNull(),
-  amount: int("amount").notNull(),
+  amount: integer("amount").notNull(),
   currency: text("currency").notNull(),
   effectiveDate: text("effective_date").notNull(),
-  type: text("type").notNull(), // "basic", "bonus", "deduction"
+  type: text("type").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -702,10 +666,9 @@ export const insertEmployeeSalarySchema = createInsertSchema(employeeSalaries).o
 export type InsertEmployeeSalary = z.infer<typeof insertEmployeeSalarySchema>;
 export type EmployeeSalary = InferSelectModel<typeof employeeSalaries>;
 
-// System Settings
-export const systemSettings = mysqlTable("system_settings", {
+export const systemSettings = pgTable("system_settings", {
   id: varchar("id", { length: 255 }).primaryKey().default("current"),
-  settings: json("settings").notNull(),
+  settings: jsonb("settings").notNull(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
@@ -714,12 +677,11 @@ export const insertSystemSettingsSchema = createInsertSchema(systemSettings);
 export type InsertSystemSettings = z.infer<typeof insertSystemSettingsSchema>;
 export type SystemSettings = InferSelectModel<typeof systemSettings>;
 
-// Exchange Rates
-export const exchangeRates = mysqlTable("exchange_rates", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`(UUID())`),
+export const exchangeRates = pgTable("exchange_rates", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   base: text("base").notNull().default("USD"),
   date: text("date").notNull(),
-  rates: text("rates").notNull(), // JSON string with currency rates
+  rates: text("rates").notNull(),
   fetchedAt: timestamp("fetched_at").defaultNow(),
 });
 
