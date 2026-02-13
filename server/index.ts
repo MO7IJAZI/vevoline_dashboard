@@ -179,7 +179,7 @@ app.use((req, res, next) => {
       log("✅ Routes registered");
     } catch (routeErr) {
       console.error("❌ CRITICAL: Failed to register routes:", routeErr);
-      throw routeErr;
+      // Don't throw, try to continue to serve static files if possible
     }
 
     app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -200,7 +200,12 @@ app.use((req, res, next) => {
     // doesn't interfere with the other routes
     if (isProduction) {
       log("Setting up static file serving (Production Mode)");
-      serveStatic(app);
+      try {
+        serveStatic(app);
+        log("✅ Static files setup complete");
+      } catch (staticErr) {
+        console.error("❌ Failed to setup static serving:", staticErr);
+      }
     } else {
       log("Setting up Vite development server (Development Mode)");
       const { setupVite } = await import("./vite");
@@ -212,9 +217,16 @@ app.use((req, res, next) => {
     // this serves both the API and the client.
     // It is the only port that is not firewalled.
     const PORT = Number(process.env.PORT) || 5000;
-    httpServer.listen(PORT, "0.0.0.0", () => {
-      log(`serving on port ${PORT}`);
-    });
+
+    // In Passenger, we should check if we should listen
+    // Passenger typically manages the port/socket
+    if (!process.env.PASSENGER_APP_ENV) {
+      httpServer.listen(PORT, "0.0.0.0", () => {
+        log(`serving on port ${PORT}`);
+      });
+    } else {
+      log("Running under Phusion Passenger - listener managed by web server");
+    }
   } catch (err) {
     console.error("CRITICAL ERROR DURING STARTUP:", err);
     // Log process details to help debug environment issues
@@ -225,12 +237,20 @@ app.use((req, res, next) => {
       env: {
         NODE_ENV: process.env.NODE_ENV,
         PORT: process.env.PORT,
-        HAS_DATABASE_URL: !!process.env.DATABASE_URL
+        HAS_DATABASE_URL: !!process.env.DATABASE_URL,
+        IS_PASSENGER: !!process.env.PASSENGER_APP_ENV
       }
     });
-    process.exit(1);
+    // In Passenger, we don't always want to exit(1) as it might restart in a loop
+    // But for a critical startup error, we have no choice.
+    if (!process.env.PASSENGER_APP_ENV) {
+      process.exit(1);
+    }
   }
 })();
 
 // Export for Phusion Passenger
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = app;
+}
 export default app;
