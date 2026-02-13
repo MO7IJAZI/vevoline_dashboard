@@ -44,33 +44,61 @@ console.log(`[Server] Environment: ${isProduction ? "production" : "development"
 console.log(`[Session] Config: secure=${isProduction}, maxAge=${SESSION_MAX_AGE}ms`);
 
 const databaseUrl = process.env.DATABASE_URL;
-let sessionConnection: URL | null = null;
-try {
-  if (databaseUrl) {
-    sessionConnection = new URL(databaseUrl);
+let sessionConfig: any = {
+  host: "localhost",
+  port: 3306,
+  user: "",
+  password: "",
+  database: ""
+};
+
+if (databaseUrl) {
+  try {
+    // Try standard URL parsing
+    const url = new URL(databaseUrl);
+    sessionConfig = {
+      host: url.hostname || "localhost",
+      port: url.port ? Number(url.port) : 3306,
+      user: decodeURIComponent(url.username) || "",
+      password: decodeURIComponent(url.password) || "",
+      database: url.pathname ? url.pathname.slice(1) : ""
+    };
+  } catch (err) {
+    log("[Session] Standard URL parsing failed, attempting manual regex parsing for DATABASE_URL");
+    // Manual parsing for complex passwords with special characters like '?'
+    const regex = /mysql:\/\/([^:]+):(.*)@([^:/]+)(?::(\d+))?\/(.+)/;
+    const match = databaseUrl.match(regex);
+    if (match) {
+      sessionConfig = {
+        user: decodeURIComponent(match[1]),
+        password: decodeURIComponent(match[2]),
+        host: match[3],
+        port: match[4] ? Number(match[4]) : 3306,
+        database: match[5]
+      };
+      log("[Session] Manual regex parsing successful");
+    } else {
+      console.error("[Session] All DATABASE_URL parsing attempts failed");
+    }
   }
-} catch (err) {
-  console.error("[Session] Failed to parse DATABASE_URL for session store:", err);
 }
+
+const sessionStore = new MySqlSession({
+  ...sessionConfig,
+  createDatabaseTable: true,
+  schema: {
+    tableName: "sessions",
+    columnNames: {
+      session_id: "session_id",
+      expires: "expires",
+      data: "data",
+    },
+  },
+});
 
 app.use(
   session({
-    store: new MySqlSession({
-      host: sessionConnection?.hostname || "localhost",
-      port: sessionConnection?.port ? Number(sessionConnection.port) : 3306,
-      user: sessionConnection?.username || "",
-      password: sessionConnection?.password || "",
-      database: sessionConnection?.pathname ? sessionConnection.pathname.slice(1) : "",
-      createDatabaseTable: true,
-      schema: {
-        tableName: "session",
-        columnNames: {
-          session_id: "sid",
-          expires: "expire",
-          data: "sess",
-        },
-      },
-    }),
+    store: sessionStore,
     secret: process.env.SESSION_SECRET || "vevoline-dashboard-secret-key",
     resave: false,
     saveUninitialized: false,
@@ -85,13 +113,7 @@ app.use(
 );
 
 export function log(message: string, source = "express") {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
+  const formattedTime = new Date().toISOString();
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
@@ -144,10 +166,21 @@ app.use((req, res, next) => {
     registerClientPortalRoutes(app);
     
     log("Seeding admin user...");
-    await seedAdminUser();
+    try {
+      await seedAdminUser();
+      log("✅ Admin user seeding checked");
+    } catch (seedErr) {
+      console.error("⚠️ Seeding admin user failed (continuing anyway):", seedErr);
+    }
     
     log("Registering routes...");
-    await registerRoutes(httpServer, app);
+    try {
+      await registerRoutes(httpServer, app);
+      log("✅ Routes registered");
+    } catch (routeErr) {
+      console.error("❌ CRITICAL: Failed to register routes:", routeErr);
+      throw routeErr;
+    }
 
     app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
       const status = err.status || err.statusCode || 500;
@@ -178,21 +211,23 @@ app.use((req, res, next) => {
     // Other ports are firewalled. Default to 5000 if not specified.
     // this serves both the API and the client.
     // It is the only port that is not firewalled.
-    const port = parseInt(process.env.PORT || "5000", 10);
-    httpServer.listen(
-      {
-        port,
-        host: "0.0.0.0",
-      },
-      () => {
-        log(`serving on port ${port}`);
-      },
-    );
+    const PORT = Number(process.env.PORT) || 5000;
+    httpServer.listen(PORT, "0.0.0.0", () => {
+      log(`serving on port ${PORT}`);
+    });
   } catch (err) {
     console.error("CRITICAL ERROR DURING STARTUP:", err);
-    // On Hostinger, we want to avoid immediate crash if possible, 
-    // but a critical error during startup is usually fatal.
-    // At least we logged it.
+    // Log process details to help debug environment issues
+    console.error("Process Details:", {
+      cwd: process.cwd(),
+      nodeVersion: process.version,
+      platform: process.platform,
+      env: {
+        NODE_ENV: process.env.NODE_ENV,
+        PORT: process.env.PORT,
+        HAS_DATABASE_URL: !!process.env.DATABASE_URL
+      }
+    });
     process.exit(1);
   }
 })();

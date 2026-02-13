@@ -11,8 +11,27 @@ export function serveStatic(app: Express) {
   const possiblePaths = [
     path.resolve(process.cwd(), "dist", "public"),
     path.resolve(process.cwd(), "public"),
-    path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist", "public"),
   ];
+
+  // Try to use __dirname if available (it is in CJS)
+  try {
+    if (typeof __dirname !== 'undefined') {
+      possiblePaths.push(path.join(__dirname, "..", "dist", "public"));
+      possiblePaths.push(path.join(__dirname, "public"));
+    }
+  } catch (e) {
+    // Ignore if __dirname is not available
+  }
+
+  // Safely try import.meta.url only if not in a CJS context that would crash
+  try {
+    // @ts-ignore - this might not exist in some environments
+    if (typeof import.meta !== 'undefined' && import.meta.url) {
+      possiblePaths.push(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist", "public"));
+    }
+  } catch (e) {
+    // Ignore if import.meta.url is not available
+  }
 
   let distPath = "";
   for (const p of possiblePaths) {
